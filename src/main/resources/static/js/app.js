@@ -94,7 +94,7 @@ function renderDaySummary(log, position){
   const wins = todays.filter(t=>t.pnl>0).length;
   document.getElementById('dayWinRate').textContent = todays.length ? Math.round(wins/todays.length*100)+'%' : '—';
 
-  // Capital deployed today = money used by today's closed trades, plus any position still open from today.
+  // Capital Deployed today = money used by today's closed trades, plus any position still open from today.
   let invested = todays.reduce((a,t)=>a+t.investedAmount,0);
   if(position && dateLabel(position.entryTime)==='Today') invested += position.investedAmount;
   document.getElementById('dayInvested').textContent = '₹'+invested.toFixed(2);
