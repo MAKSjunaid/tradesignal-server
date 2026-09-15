@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeSignal — Always-on Paper Trading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">₹</div>
+      <div><h1>TradeSignal</h1><div class="tagline">Always-on paper trading engine (Spring Boot) — runs on the server, not your browser</div></div>
+    </div>
+    <div class="market-status"><span class="dot" id="marketDot"></span><span id="marketText">—</span><span id="istClock"></span></div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h3 class="panel-title">Trade setup</h3>
+        <label>Stock symbol</label>
+        <input type="text" id="symbol" placeholder="e.g. RELIANCE, TCS, INFY">
+        <div class="row2">
+          <div><label>Exchange</label><select id="exchange"><option value=".NS">NSE</option><option value=".BO">BSE</option></select></div>
+          <div><label>Investment (₹)</label><input type="number" id="investment" min="0"></div>
+        </div>
+        <label>Mode</label>
+        <div class="seg" id="modeSeg"><button data-mode="intraday">Intraday</button><button data-mode="longterm">Long-term</button></div>
+        <label>Automatic execution</label>
+        <div class="seg" id="autoSeg"><button data-auto="off">Off</button><button data-auto="on">Auto BUY/SELL/HOLD</button></div>
+        <div class="row2">
+          <div><label>Target %</label><input type="number" id="targetPct" step="0.1"></div>
+          <div><label>Stop-loss %</label><input type="number" id="stopPct" step="0.1"></div>
+        </div>
+        <button class="btn btn-primary" id="saveBtn">Save setup</button>
+        <button class="btn btn-secondary" id="manualStartBtn">Start paper trade now</button>
+        <button class="btn btn-danger" id="exitBtn" style="display:none;">Exit trade now</button>
+        <button class="btn btn-outline-danger" id="resetBtn">Reset everything</button>
+        <div class="err" id="errBox"></div>
+        <div class="hint" id="lastChecked"></div>
+
+        <div id="signalCard" class="signal-card">
+          <span class="signal-badge" id="signalBadge">—</span>
+          <ul class="reasons" id="reasonsList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="summary-strip">
+        <div class="item"><span class="k">Today's realised P&amp;L</span><span class="v" id="dayPnl">₹0.00</span></div>
+        <div class="item"><span class="k">Trades today</span><span class="v" id="dayTrades">0</span></div>
+        <div class="item"><span class="k">Win rate today</span><span class="v" id="dayWinRate">—</span></div>
+        <div class="item"><span class="k">Capital deployed today</span><span class="v" id="dayInvested">₹0.00</span></div>
+      </div>
+
+      <div class="panel" id="positionCard">
+        <h3 class="panel-title">Open position</h3>
+        <div class="card-row">
+          <div><div class="sub">Live price</div><div class="big-num" id="posLive">—</div></div>
+          <div><div class="sub">Unrealised P&amp;L</div><div class="big-num" id="posPnl">—</div></div>
+        </div>
+        <div class="card-row" style="margin-top:14px;">
+          <div><div class="sub">Investment utilised on this order</div><div class="big-num invested" id="posInvested">—</div></div>
+          <div><div class="sub">Entry / Qty</div><div class="big-num invested" id="posEntry">—</div></div>
+        </div>
+        <div class="row2" style="margin-top:14px;">
+          <div class="sub">Target: <b id="posTarget"></b></div>
+          <div class="sub">Stop-loss: <b id="posStop"></b></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3 class="panel-title">Trade log</h3>
+          <a class="dl" href="/api/log.json" download>Download JSON</a>
+        </div>
+        <div id="logWrap"><div class="empty">No trades yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Paper trading only — no real orders are placed. This runs continuously on the Spring Boot server, so it keeps checking prices and managing any open trade even while your browser or laptop is closed. Signals come from a simple SMA/RSI heuristic on Yahoo Finance data — for learning, not investment advice. Always verify prices on your broker's terminal before acting on anything shown here.
+  </footer>
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>

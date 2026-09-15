@@ -1,0 +1,34 @@
+{
+  "config" : {
+    "symbol" : "INFY",
+    "suffix" : ".NS",
+    "investment" : 10000.0,
+    "mode" : "intraday",
+    "targetPct" : 2.0,
+    "stopPct" : 1.0,
+    "autoMode" : true
+  },
+  "position" : {
+    "symbol" : "INFY.NS",
+    "mode" : "intraday",
+    "entryPrice" : 1077.0,
+    "qty" : 9,
+    "investedAmount" : 9693.0,
+    "entryTime" : "2026-09-15T18:35:16.782162900Z",
+    "target" : 1098.54,
+    "stopLoss" : 1066.23
+  },
+  "tradeLog" : [ ],
+  "lastSignal" : {
+    "action" : "HOLD",
+    "reasons" : [ "Short-term average is below the long-term average — downtrend", "RSI is 53.6 — neutral", "Price is trading above its short-term average" ],
+    "s20" : 1075.7149963378906,
+    "s50" : 1078.3639916992188,
+    "r14" : 53.59999218772887,
+    "price" : 1077.0,
+    "symbol" : "INFY.NS",
+    "at" : "2026-09-15T18:37:05.119779900Z",
+    "error" : null
+  },
+  "lastChecked" : "2026-09-15T18:37:05.119779900Z"
+}
