@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeSignal — Always-on Paper Trading</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E1522; --panel:#151E30; --panel-2:#0F1826; --border:#26324A;
+  --text:#E7EAF2; --muted:#8C97AD; --gold:#D6A756; --gold-dim:#8A6F3C;
+  --green:#3FCB83; --red:#F0584F; --radius:10px;
+  font-variant-numeric: tabular-nums;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;line-height:1.5;}
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;}
+.app{max-width:1100px;margin:0 auto;padding:20px 20px 60px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{width:38px;height:38px;border-radius:8px;background:linear-gradient(160deg,var(--gold),var(--gold-dim));display:flex;align-items:center;justify-content:center;font-weight:700;color:#1A1206;font-size:18px;font-family:'Space Grotesk',sans-serif;}
+.brand h1{font-size:19px;}
+.tagline{color:var(--muted);font-size:12.5px;margin-top:2px;}
+.market-status{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--border);padding:8px 14px;border-radius:999px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+.dot.open{background:var(--green);box-shadow:0 0 8px var(--green);}
+.dot.closed{background:var(--red);}
+.layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;}
+@media (max-width:860px){.layout{grid-template-columns:1fr;}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.panel + .panel{margin-top:16px;}
+label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px;}
+label:first-child{margin-top:0;}
+input[type=text],input[type=number],select{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:9px 10px;border-radius:7px;font-size:14px;font-family:inherit;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.seg{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-top:2px;}
+.seg button{flex:1;padding:8px 0;background:var(--panel-2);color:var(--muted);border:none;cursor:pointer;font-size:13px;font-family:inherit;}
+.seg button.active{background:var(--gold);color:#1A1206;font-weight:600;}
+.btn{width:100%;padding:10px;border-radius:7px;border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:14px;}
+.btn-primary{background:var(--gold);color:#1A1206;}
+.btn-secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+.btn-danger{background:var(--red);color:#fff;}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.hint{font-size:11.5px;color:var(--muted);margin-top:6px;}
+.err{font-size:12px;color:var(--red);margin-top:8px;display:none;}
+.signal-badge{display:inline-block;padding:5px 14px;border-radius:6px;font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:15px;}
+.signal-badge.BUY{background:rgba(63,203,131,0.15);color:var(--green);}
+.signal-badge.SELL{background:rgba(240,88,79,0.15);color:var(--red);}
+.signal-badge.HOLD{background:rgba(214,167,86,0.15);color:var(--gold);}
+.reasons{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px;}
+.reasons li{margin-bottom:5px;}
+.card-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:640px){.card-row{grid-template-columns:1fr;}}
+.big-num{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;margin-top:4px;}
+.sub{color:var(--muted);font-size:12px;}
+.pnl-pos{color:var(--green);} .pnl-neg{color:var(--red);}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px;}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:11.5px;padding:8px;border-bottom:1px solid var(--border);}
+td{padding:8px;border-bottom:1px solid var(--border);}
+.empty{color:var(--muted);text-align:center;padding:24px 0;font-size:13px;}
+.summary-strip{display:flex;gap:20px;flex-wrap:wrap;padding:14px 16px;background:var(--panel-2);border-radius:8px;margin-bottom:16px;border:1px solid var(--border);}
+.summary-strip .item .k{display:block;color:var(--muted);font-size:11px;}
+.summary-strip .item .v{font-weight:600;font-size:15px;font-family:'Space Grotesk',sans-serif;}
+footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px;line-height:1.6;}
+a.dl{color:var(--gold);text-decoration:none;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">₹</div>
+      <div><h1>TradeSignal</h1><div class="tagline">Always-on paper trading engine — runs on the server, not your browser</div></div>
+    </div>
+    <div class="market-status"><span class="dot" id="marketDot"></span><span id="marketText">—</span><span id="istClock"></span></div>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h3 style="font-size:14px;">Trade setup</h3>
+        <label>Stock symbol</label>
+        <input type="text" id="symbol" placeholder="e.g. RELIANCE, TCS, INFY">
+        <div class="row2">
+          <div><label>Exchange</label><select id="exchange"><option value=".NS">NSE</option><option value=".BO">BSE</option></select></div>
+          <div><label>Investment (₹)</label><input type="number" id="investment" min="0"></div>
+        </div>
+        <label>Mode</label>
+        <div class="seg" id="modeSeg"><button data-mode="intraday">Intraday</button><button data-mode="longterm">Long-term</button></div>
+        <label>Automatic execution</label>
+        <div class="seg" id="autoSeg"><button data-auto="off">Off</button><button data-auto="on">Auto BUY/SELL/HOLD</button></div>
+        <div class="row2">
+          <div><label>Target %</label><input type="number" id="targetPct" step="0.1"></div>
+          <div><label>Stop-loss %</label><input type="number" id="stopPct" step="0.1"></div>
+        </div>
+        <button class="btn btn-primary" id="saveBtn">Save setup</button>
+        <button class="btn btn-secondary" id="manualStartBtn">Start paper trade now</button>
+        <button class="btn btn-danger" id="exitBtn" style="display:none;">Exit trade now</button>
+        <button class="btn btn-secondary" id="resetBtn" style="border-color:var(--red);color:var(--red);">Reset everything</button>
+        <div class="err" id="errBox"></div>
+        <div class="hint" id="lastChecked"></div>
+
+        <div id="signalCard" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+          <span class="signal-badge" id="signalBadge">—</span>
+          <ul class="reasons" id="reasonsList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="summary-strip">
+        <div class="item"><span class="k">Today's realised P&amp;L</span><span class="v" id="dayPnl">₹0.00</span></div>
+        <div class="item"><span class="k">Trades today</span><span class="v" id="dayTrades">0</span></div>
+        <div class="item"><span class="k">Win rate today</span><span class="v" id="dayWinRate">—</span></div>
+      </div>
+
+      <div class="panel" id="positionCard" style="display:none;">
+        <h3 style="font-size:14px;margin-bottom:10px;">Open position</h3>
+        <div class="card-row">
+          <div><div class="sub">Live price</div><div class="big-num" id="posLive">—</div></div>
+          <div><div class="sub">Unrealised P&amp;L</div><div class="big-num" id="posPnl">—</div></div>
+        </div>
+        <div class="row2" style="margin-top:14px;">
+          <div class="sub">Entry: <b id="posEntry"></b></div>
+          <div class="sub">Target / Stop: <b id="posTS"></b></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="font-size:14px;">Trade log</h3>
+          <a class="dl" href="/api/log.json" download>Download JSON</a>
+        </div>
+        <div id="logWrap"><div class="empty">No trades yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Paper trading only — no real orders are placed. This runs continuously on the server, so it keeps checking prices and managing any open trade even while your browser or laptop is closed. Signals come from a simple SMA/RSI heuristic on Yahoo Finance data — for learning, not investment advice. Always verify prices on your broker's terminal before acting on anything shown here.
+  </footer>
+</div>
+
+<script>
+let mode = 'intraday', autoMode = false;
+
+function istNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
+function tickClock(){
+  const n = istNow();
+  document.getElementById('istClock').textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')+' IST';
+}
+setInterval(tickClock,1000); tickClock();
+
+document.getElementById('modeSeg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.mode;
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('active',x===b));
+});
+document.getElementById('autoSeg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  autoMode = b.dataset.auto==='on';
+  document.querySelectorAll('#autoSeg button').forEach(x=>x.classList.toggle('active',x===b));
+});
+
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const errBox=document.getElementById('errBox'); errBox.style.display='none';
+  const body = {
+    symbol: document.getElementById('symbol').value,
+    suffix: document.getElementById('exchange').value,
+    investment: parseFloat(document.getElementById('investment').value)||0,
+    mode, autoMode,
+    targetPct: parseFloat(document.getElementById('targetPct').value)||0,
+    stopPct: parseFloat(document.getElementById('stopPct').value)||0,
+  };
+  try{
+    const r = await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if(!r.ok) throw new Error('save failed');
+    refresh();
+  }catch(e){ errBox.textContent='Could not save setup.'; errBox.style.display='block'; }
+});
+
+document.getElementById('manualStartBtn').addEventListener('click', async ()=>{
+  const errBox=document.getElementById('errBox'); errBox.style.display='none';
+  try{
+    const r = await fetch('/api/start', {method:'POST'});
+    const data = await r.json();
+    if(!data.ok){ errBox.textContent = data.error; errBox.style.display='block'; return; }
+    refresh();
+  }catch(e){ errBox.textContent='Could not start trade.'; errBox.style.display='block'; }
+});
+document.getElementById('exitBtn').addEventListener('click', async ()=>{
+  await fetch('/api/exit', {method:'POST'});
+  refresh();
+});
+document.getElementById('resetBtn').addEventListener('click', async ()=>{
+  if(!confirm('This closes any open trade, clears the entire trade log, and resets the symbol/investment/target/stop back to blank. This cannot be undone. Continue?')) return;
+  await fetch('/api/reset', {method:'POST'});
+  formTouched = false;
+  refresh();
+});
+
+function dateLabel(iso){
+  const d = new Date(new Date(iso).toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+  const today = istNow().toDateString();
+  const yest = new Date(istNow().getTime()-86400000).toDateString();
+  if(d.toDateString()===today) return 'Today';
+  if(d.toDateString()===yest) return 'Yesterday';
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+}
+function renderLog(log){
+  const wrap = document.getElementById('logWrap');
+  if(!log.length){ wrap.innerHTML='<div class="empty">No trades yet.</div>'; return; }
+  let html='', lastLabel=null;
+  for(const t of log){
+    const label = dateLabel(t.exitTime);
+    if(label!==lastLabel){
+      if(lastLabel!==null) html+='</tbody></table>';
+      html += `<div class="hint" style="margin-top:14px;font-weight:600;color:var(--text);">${label}</div>`;
+      html += '<table><thead><tr><th>Symbol</th><th>Mode</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&amp;L</th><th>Reason</th></tr></thead><tbody>';
+      lastLabel=label;
+    }
+    const cls = t.pnl>=0?'pnl-pos':'pnl-neg';
+    html += `<tr><td>${t.symbol}</td><td>${t.mode}</td><td>₹${t.entryPrice.toFixed(2)}</td><td>₹${t.exitPrice.toFixed(2)}</td><td>${t.qty}</td><td class="${cls}">${t.pnl>=0?'+':''}₹${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(2)}%)</td><td>${t.reason}</td></tr>`;
+  }
+  html+='</tbody></table>';
+  wrap.innerHTML = html;
+}
+function renderDaySummary(log){
+  const todayStr = istNow().toDateString();
+  const todays = log.filter(t => new Date(new Date(t.exitTime).toLocaleString('en-US',{timeZone:'Asia/Kolkata'})).toDateString()===todayStr);
+  const total = todays.reduce((a,t)=>a+t.pnl,0);
+  const el = document.getElementById('dayPnl');
+  el.textContent = (total>=0?'+':'')+'₹'+total.toFixed(2);
+  el.className = 'v ' + (total>=0?'pnl-pos':'pnl-neg');
+  document.getElementById('dayTrades').textContent = todays.length;
+  const wins = todays.filter(t=>t.pnl>0).length;
+  document.getElementById('dayWinRate').textContent = todays.length ? Math.round(wins/todays.length*100)+'%' : '—';
+}
+
+let formTouched = false;
+['symbol','investment','targetPct','stopPct'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>formTouched=true);
+});
+
+async function refresh(){
+  let data;
+  try{
+    const r = await fetch('/api/state');
+    data = await r.json();
+  }catch(e){ return; }
+
+  const dot = document.getElementById('marketDot'), txt = document.getElementById('marketText');
+  dot.className = 'dot ' + (data.marketOpen?'open':'closed');
+  txt.textContent = data.marketOpen ? 'Market open' : 'Market closed';
+
+  if(!formTouched){
+    document.getElementById('symbol').value = data.config.symbol || '';
+    document.getElementById('exchange').value = data.config.suffix;
+    document.getElementById('investment').value = data.config.investment;
+    document.getElementById('targetPct').value = data.config.targetPct;
+    document.getElementById('stopPct').value = data.config.stopPct;
+    mode = data.config.mode; autoMode = data.config.autoMode;
+    document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+    document.querySelectorAll('#autoSeg button').forEach(b=>b.classList.toggle('active', (b.dataset.auto==='on')===autoMode));
+  }
+
+  if(data.lastSignal && !data.lastSignal.error){
+    const s = data.lastSignal;
+    document.getElementById('signalCard').style.display='block';
+    const badge = document.getElementById('signalBadge');
+    badge.className = 'signal-badge ' + s.action; badge.textContent = s.action;
+    document.getElementById('reasonsList').innerHTML = s.reasons.map(r=>`<li>${r}</li>`).join('');
+    document.getElementById('lastChecked').textContent = 'Last checked ' + new Date(s.at).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'}) + ' IST · price ₹' + s.price.toFixed(2);
+  } else if(data.lastSignal && data.lastSignal.error){
+    document.getElementById('lastChecked').textContent = 'Last check failed: ' + data.lastSignal.error;
+  }
+
+  if(data.position){
+    document.getElementById('positionCard').style.display='block';
+    document.getElementById('manualStartBtn').style.display='none';
+    document.getElementById('exitBtn').style.display='block';
+    const price = (data.lastSignal && data.lastSignal.price) || data.position.entryPrice;
+    document.getElementById('posLive').textContent = '₹'+price.toFixed(2);
+    const pnl = (price-data.position.entryPrice)*data.position.qty;
+    const pnlPct = (price-data.position.entryPrice)/data.position.entryPrice*100;
+    const pnlEl = document.getElementById('posPnl');
+    pnlEl.textContent = (pnl>=0?'+':'')+'₹'+pnl.toFixed(2)+' ('+(pnlPct>=0?'+':'')+pnlPct.toFixed(2)+'%)';
+    pnlEl.className = 'big-num ' + (pnl>=0?'pnl-pos':'pnl-neg');
+    document.getElementById('posEntry').textContent = '₹'+data.position.entryPrice.toFixed(2)+' × '+data.position.qty;
+    document.getElementById('posTS').textContent = '₹'+data.position.target.toFixed(2)+' / ₹'+data.position.stopLoss.toFixed(2);
+  } else {
+    document.getElementById('positionCard').style.display='none';
+    document.getElementById('manualStartBtn').style.display='block';
+    document.getElementById('exitBtn').style.display='none';
+  }
+
+  renderLog(data.tradeLog);
+  renderDaySummary(data.tradeLog);
+}
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>
