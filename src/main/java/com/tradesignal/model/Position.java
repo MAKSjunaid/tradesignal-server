@@ -10,4 +10,6 @@ public class Position {
     public String entryTime; // ISO-8601
     public double target;
     public double stopLoss;
+    /** Human-readable explanation of how qty was chosen (risk %, volatility, any caps applied). */
+    public String sizingNote;
 }
