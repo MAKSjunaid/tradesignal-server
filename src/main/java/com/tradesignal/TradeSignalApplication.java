@@ -11,3 +11,4 @@ public class TradeSignalApplication {
         SpringApplication.run(TradeSignalApplication.class, args);
     }
 }
+//ALL GOOD
