@@ -31,5 +31,3 @@ public final class MarketHours {
         return ZonedDateTime.ofInstant(Instant.parse(isoInstant), IST).toLocalDate().toString();
     }
 }
-
-// GOOD

@@ -10,6 +10,9 @@
 </head>
 <body>
 <div class="app">
+  <div id="storageWarning" class="storage-warning">
+    Storage is not durable — this data will be wiped when the server restarts or sleeps. Set a DATABASE_URL environment variable on Render (free Neon/Supabase Postgres) to keep your trade history permanently.
+  </div>
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark">₹</div>
@@ -37,10 +40,21 @@
         <div class="seg" id="modeSeg"><button data-mode="intraday">Intraday</button><button data-mode="longterm">Long-term</button></div>
         <label>Automatic execution</label>
         <div class="seg" id="autoSeg"><button data-auto="off">Off</button><button data-auto="on">Auto BUY/SELL/HOLD</button></div>
-        <div class="row2">
+        <label>Exit trigger</label>
+        <div class="seg" id="exitModeSeg">
+          <button data-exit="percent">By %</button>
+          <button data-exit="rupees">By ₹</button>
+        </div>
+        <div class="row2" id="percentRow">
           <div><label>Target %</label><input type="number" id="targetPct" min="0.01" step="0.01"></div>
           <div><label>Stop-loss %</label><input type="number" id="stopPct" min="0.01" step="0.01"></div>
         </div>
+        <div class="row2" id="rupeeRow" style="display:none;">
+          <div><label>Target (₹ move)</label><input type="number" id="targetRupees" min="0.01" step="0.01"></div>
+          <div><label>Stop-loss (₹ move)</label><input type="number" id="stopRupees" min="0.01" step="0.01"></div>
+        </div>
+        <label>Max orders per day</label>
+        <input type="number" id="maxOrdersPerDay" min="1" max="5000" step="1">
         <button class="btn btn-primary" id="saveBtn">Save setup</button>
         <button class="btn btn-secondary" id="manualStartBtn">Start paper trade now</button>
         <button class="btn btn-danger" id="exitBtn" style="display:none;">Exit trade now</button>

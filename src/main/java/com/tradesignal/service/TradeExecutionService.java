@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/** Everything About opening, closing, and settling a paper-trade position. */
+/** Everything about opening, closing, and settling a paper-trade position. */
 @Service
 public class TradeExecutionService {
 
@@ -46,6 +46,16 @@ public class TradeExecutionService {
         return equity;
     }
 
+    /** How many trades were opened today (IST), for the maxOrdersPerDay cap. */
+    public int ordersOpenedToday(AppState state) {
+        String today = MarketHours.dayKeyIST(Instant.now().toString());
+        int count = (int) state.tradeLog.stream()
+                .filter(t -> t.entryTime != null && MarketHours.dayKeyIST(t.entryTime).equals(today))
+                .count();
+        if (state.position != null && MarketHours.dayKeyIST(state.position.entryTime).equals(today)) count++;
+        return count;
+    }
+
     /**
      * Risk-based, volatility-adjusted position sizing.
      * 1. riskAmount = how much money you're willing to lose if the stop-loss hits.
@@ -63,7 +73,8 @@ public class TradeExecutionService {
         if (capitalBase <= 0) return false;
 
         double riskAmount = capitalBase * (cfg.riskPerTradePct / 100.0);
-        double stopDistancePerShare = price * (cfg.stopPct / 100.0);
+        boolean rupeeMode = "rupees".equals(cfg.exitMode);
+        double stopDistancePerShare = rupeeMode ? cfg.stopRupees : price * (cfg.stopPct / 100.0);
         if (stopDistancePerShare <= 0) return false;
         int qtyByRisk = (int) Math.floor(riskAmount / stopDistancePerShare);
 
@@ -82,11 +93,14 @@ public class TradeExecutionService {
         p.qty = qty;
         p.investedAmount = price * qty;
         p.entryTime = Instant.now().toString();
-        p.target = price * (1 + cfg.targetPct / 100);
-        p.stopLoss = price * (1 - cfg.stopPct / 100);
+        p.target = rupeeMode ? price + cfg.targetRupees : price * (1 + cfg.targetPct / 100);
+        p.stopLoss = rupeeMode ? price - cfg.stopRupees : price * (1 - cfg.stopPct / 100);
+        String exitDesc = rupeeMode
+                ? String.format("\u20b9%.2f target / \u20b9%.2f stop (absolute)", cfg.targetRupees, cfg.stopRupees)
+                : String.format("%.2f%% target / %.2f%% stop", cfg.targetPct, cfg.stopPct);
         p.sizingNote = String.format(
-            "Risking %.1f%% of capital (\u20b9%.2f) over a %.1f%% stop \u2192 %d shares by risk, \u00d7%.2f for %.2f%% ATR volatility (baseline %.1f%%), capped at %.0f%% of capital.",
-            cfg.riskPerTradePct, riskAmount, cfg.stopPct, qtyByRisk, volAdjust, vol, BASELINE_VOLATILITY_PCT, cfg.maxOrderPct);
+            "Risking %.1f%% of \u20b9%.2f capital (\u20b9%.2f) over a %s \u2192 %d shares by risk, \u00d7%.2f for %.2f%% ATR volatility, capped at %.0f%% of capital.",
+            cfg.riskPerTradePct, capitalBase, riskAmount, exitDesc, qtyByRisk, volAdjust, vol, cfg.maxOrderPct);
 
         state.position = p;
         store.save();

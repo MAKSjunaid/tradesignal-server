@@ -9,8 +9,10 @@ public class SignalResult {
     public Double s50;
     public Double r14;
     public double price;
+    /** Confluence score across the 5 factors (-5..+5) and the score needed to act. */
+    public int score;
+    public int threshold;
     public String symbol;
     public String at; // ISO-8601
     public String error; // set instead of the above when a fetch fails
 }
-//  GOOD
