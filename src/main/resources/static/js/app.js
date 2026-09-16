@@ -24,6 +24,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     symbol: document.getElementById('symbol').value,
     suffix: document.getElementById('exchange').value,
     investment: parseFloat(document.getElementById('investment').value)||0,
+    riskPerTradePct: parseFloat(document.getElementById('riskPerTradePct').value)||1,
+    maxOrderPct: parseFloat(document.getElementById('maxOrderPct').value)||50,
     mode, autoMode,
     targetPct: parseFloat(document.getElementById('targetPct').value)||0,
     stopPct: parseFloat(document.getElementById('stopPct').value)||0,
@@ -73,11 +75,22 @@ function renderLog(log){
     if(label!==lastLabel){
       if(lastLabel!==null) html+='</tbody></table>';
       html += `<div class="hint" style="margin-top:14px;font-weight:600;color:var(--text);">${label}</div>`;
-      html += '<table><thead><tr><th>Symbol</th><th>Mode</th><th>Invested ₹</th><th>Entry</th><th>Exit</th><th>Qty</th><th>P&amp;L</th><th>Reason</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>Symbol</th><th>Mode</th><th>Invested ₹</th><th>Buy time / price</th><th>Sell time / price</th><th>Qty</th><th>P&amp;L</th><th>Reason</th></tr></thead><tbody>';
       lastLabel=label;
     }
     const cls = t.pnl>=0?'pnl-pos':'pnl-neg';
-    html += `<tr><td>${t.symbol}</td><td>${t.mode}</td><td>₹${t.investedAmount.toFixed(2)}</td><td>₹${t.entryPrice.toFixed(2)}</td><td>₹${t.exitPrice.toFixed(2)}</td><td>${t.qty}</td><td class="${cls}">${t.pnl>=0?'+':''}₹${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(2)}%)</td><td>${t.reason}</td></tr>`;
+    const buyTime = new Date(t.entryTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+    const sellTime = new Date(t.exitTime).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+    html += `<tr>
+      <td data-label="Symbol">${t.symbol}</td>
+      <td data-label="Mode">${t.mode}</td>
+      <td data-label="Invested">₹${t.investedAmount.toFixed(2)}</td>
+      <td data-label="Buy">${buyTime} · ₹${t.entryPrice.toFixed(2)}</td>
+      <td data-label="Sell">${sellTime} · ₹${t.exitPrice.toFixed(2)}</td>
+      <td data-label="Qty">${t.qty}</td>
+      <td data-label="P&amp;L" class="${cls}">${t.pnl>=0?'+':''}₹${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(2)}%)</td>
+      <td data-label="Reason">${t.reason}</td>
+    </tr>`;
   }
   html+='</tbody></table>';
   wrap.innerHTML = html;
@@ -94,14 +107,14 @@ function renderDaySummary(log, position){
   const wins = todays.filter(t=>t.pnl>0).length;
   document.getElementById('dayWinRate').textContent = todays.length ? Math.round(wins/todays.length*100)+'%' : '—';
 
-  // Capital Deployed today = money used by today's closed trades, plus any position still open from today.
+  // Capital deployed today = money used by today's closed trades, plus any position still open from today.
   let invested = todays.reduce((a,t)=>a+t.investedAmount,0);
   if(position && dateLabel(position.entryTime)==='Today') invested += position.investedAmount;
   document.getElementById('dayInvested').textContent = '₹'+invested.toFixed(2);
 }
 
 let formTouched = false;
-['symbol','investment','targetPct','stopPct'].forEach(id=>{
+['symbol','investment','riskPerTradePct','maxOrderPct','targetPct','stopPct'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>formTouched=true);
 });
 
@@ -120,6 +133,8 @@ async function refresh(){
     document.getElementById('symbol').value = data.config.symbol || '';
     document.getElementById('exchange').value = data.config.suffix;
     document.getElementById('investment').value = data.config.investment;
+    document.getElementById('riskPerTradePct').value = data.config.riskPerTradePct;
+    document.getElementById('maxOrderPct').value = data.config.maxOrderPct;
     document.getElementById('targetPct').value = data.config.targetPct;
     document.getElementById('stopPct').value = data.config.stopPct;
     mode = data.config.mode; autoMode = data.config.autoMode;
@@ -134,6 +149,9 @@ async function refresh(){
     badge.className = 'signal-badge ' + s.action; badge.textContent = s.action;
     document.getElementById('reasonsList').innerHTML = s.reasons.map(r=>`<li>${r}</li>`).join('');
     document.getElementById('lastChecked').textContent = 'Last checked ' + new Date(s.at).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'}) + ' IST · price ₹' + s.price.toFixed(2);
+    document.getElementById('volatilityHint').textContent = data.lastVolatilityPct!=null
+      ? `Current volatility (ATR): ${data.lastVolatilityPct.toFixed(2)}% of price — this scales the position size up or down.`
+      : '';
   } else if(data.lastSignal && data.lastSignal.error){
     document.getElementById('lastChecked').textContent = 'Last check failed: ' + data.lastSignal.error;
   }
@@ -153,6 +171,7 @@ async function refresh(){
     document.getElementById('posEntry').textContent = '₹'+data.position.entryPrice.toFixed(2)+' × '+data.position.qty;
     document.getElementById('posTarget').textContent = '₹'+data.position.target.toFixed(2);
     document.getElementById('posStop').textContent = '₹'+data.position.stopLoss.toFixed(2);
+    document.getElementById('posSizingNote').textContent = data.position.sizingNote || '';
   } else {
     document.getElementById('positionCard').style.display='none';
     document.getElementById('manualStartBtn').style.display='block';
@@ -161,6 +180,8 @@ async function refresh(){
 
   renderLog(data.tradeLog);
   renderDaySummary(data.tradeLog, data.position);
+  document.getElementById('capitalAvailable').textContent = '₹'+(data.availableCapital||0).toFixed(2);
+  document.getElementById('nextMoveHint').textContent = data.nextMoveHint || 'Waiting for the first price check…';
 }
 
 refresh();
