@@ -22,6 +22,8 @@ public class YahooFinanceService {
     public static class ChartData {
         public double regularMarketPrice;
         public List<Double> closes = new ArrayList<>();
+        public List<Double> highs = new ArrayList<>();
+        public List<Double> lows = new ArrayList<>();
         public List<Long> timestamps = new ArrayList<>();
     }
 
@@ -56,13 +58,24 @@ public class YahooFinanceService {
         data.regularMarketPrice = meta.path("regularMarketPrice").asDouble();
 
         JsonNode timestampsNode = result.path("timestamp");
-        for (JsonNode t : timestampsNode) {
-            data.timestamps.add(t.asLong());
-        }
+        JsonNode quote = result.path("indicators").path("quote").get(0);
+        JsonNode closesNode = quote.path("close");
+        JsonNode highsNode = quote.path("high");
+        JsonNode lowsNode = quote.path("low");
 
-        JsonNode closesNode = result.path("indicators").path("quote").get(0).path("close");
-        for (JsonNode c : closesNode) {
-            if (!c.isNull()) data.closes.add(c.asDouble());
+        // Build close/high/low together so the three lists stay index-aligned \u2014
+        // only keep a candle where all three values are actually present.
+        int n = closesNode.size();
+        for (int i = 0; i < n; i++) {
+            JsonNode c = closesNode.get(i);
+            JsonNode h = i < highsNode.size() ? highsNode.get(i) : null;
+            JsonNode l = i < lowsNode.size() ? lowsNode.get(i) : null;
+            if (c != null && !c.isNull() && h != null && !h.isNull() && l != null && !l.isNull()) {
+                data.closes.add(c.asDouble());
+                data.highs.add(h.asDouble());
+                data.lows.add(l.asDouble());
+                if (i < timestampsNode.size()) data.timestamps.add(timestampsNode.get(i).asLong());
+            }
         }
         if (data.closes.isEmpty() && data.regularMarketPrice == 0) {
             throw new RuntimeException("No price data returned for " + symbol);
