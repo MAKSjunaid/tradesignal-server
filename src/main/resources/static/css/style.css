@@ -22,6 +22,38 @@ h1,h2,h3{font-family:'Space Grotesk',sans-serif;margin:0;}
 .layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;}
 @media (max-width:860px){.layout{grid-template-columns:1fr;}}
 
+#logWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+#logWrap table{min-width:640px;}
+
+@media (max-width:600px){
+  body{font-size:13px;}
+  .app{padding:14px 12px 40px;}
+  .topbar{flex-direction:column;align-items:flex-start;gap:10px;padding-bottom:14px;margin-bottom:14px;}
+  .market-status{width:100%;justify-content:space-between;box-sizing:border-box;}
+  .brand-mark{width:32px;height:32px;font-size:15px;}
+  .brand h1{font-size:16px;}
+  .tagline{font-size:11px;}
+  .panel{padding:14px;}
+  .btn{padding:11px;font-size:13.5px;}
+  .summary-strip{gap:12px;padding:12px;}
+  .summary-strip .item{flex:1 1 40%;min-width:120px;}
+  .big-num{font-size:21px;}
+  .big-num.invested{font-size:16px;}
+  .card-row{gap:10px;}
+  .panel-header{flex-wrap:wrap;gap:8px;}
+
+  /* No side-scrolling: each trade becomes a stacked card instead of a wide table. */
+  #logWrap{overflow-x:visible;}
+  #logWrap table{min-width:0;width:100%;border-collapse:separate;border-spacing:0;}
+  #logWrap thead{display:none;}
+  #logWrap tbody{display:block;}
+  #logWrap tr{display:block;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+  #logWrap td{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-bottom:none;font-size:12.5px;}
+  #logWrap td::before{content:attr(data-label);color:var(--muted);font-size:11px;flex-shrink:0;}
+  #logWrap td[data-label="Reason"]{flex-direction:column;align-items:flex-start;gap:2px;}
+  #logWrap td[data-label="Reason"]::before{font-size:10.5px;}
+}
+
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
 .panel + .panel{margin-top:16px;}
 .panel-title{font-size:14px;}
