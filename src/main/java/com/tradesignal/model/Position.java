@@ -5,7 +5,7 @@ public class Position {
     public String mode;
     public double entryPrice;
     public int qty;
-    /** Money actually put to work on this order: entryPrice * qty. */
+    /** Money Actually put to work on this order: entryPrice * qty. */
     public double investedAmount;
     public String entryTime; // ISO-8601
     public double target;
