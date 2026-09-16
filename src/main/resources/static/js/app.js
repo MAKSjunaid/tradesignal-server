@@ -1,4 +1,16 @@
-let mode = 'intraday', autoMode = false;
+let mode = 'intraday', autoMode = false, exitMode = 'percent';
+
+function applyExitMode(){
+  document.querySelectorAll('#exitModeSeg button').forEach(b=>b.classList.toggle('active', b.dataset.exit===exitMode));
+  document.getElementById('percentRow').style.display = exitMode==='percent' ? 'grid' : 'none';
+  document.getElementById('rupeeRow').style.display = exitMode==='rupees' ? 'grid' : 'none';
+}
+document.getElementById('exitModeSeg').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  exitMode = b.dataset.exit;
+  formTouched = true;
+  applyExitMode();
+});
 
 function istNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
 function tickClock(){
@@ -26,9 +38,12 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     investment: parseFloat(document.getElementById('investment').value)||0,
     riskPerTradePct: parseFloat(document.getElementById('riskPerTradePct').value)||1,
     maxOrderPct: parseFloat(document.getElementById('maxOrderPct').value)||50,
-    mode, autoMode,
+    mode, autoMode, exitMode,
     targetPct: parseFloat(document.getElementById('targetPct').value)||0,
     stopPct: parseFloat(document.getElementById('stopPct').value)||0,
+    targetRupees: parseFloat(document.getElementById('targetRupees').value)||0,
+    stopRupees: parseFloat(document.getElementById('stopRupees').value)||0,
+    maxOrdersPerDay: parseInt(document.getElementById('maxOrdersPerDay').value)||50,
   };
   try{
     const r = await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
@@ -114,7 +129,7 @@ function renderDaySummary(log, position){
 }
 
 let formTouched = false;
-['symbol','investment','riskPerTradePct','maxOrderPct','targetPct','stopPct'].forEach(id=>{
+['symbol','investment','riskPerTradePct','maxOrderPct','targetPct','stopPct','targetRupees','stopRupees','maxOrdersPerDay'].forEach(id=>{
   document.getElementById(id).addEventListener('input', ()=>formTouched=true);
 });
 
@@ -137,7 +152,11 @@ async function refresh(){
     document.getElementById('maxOrderPct').value = data.config.maxOrderPct;
     document.getElementById('targetPct').value = data.config.targetPct;
     document.getElementById('stopPct').value = data.config.stopPct;
-    mode = data.config.mode; autoMode = data.config.autoMode;
+    document.getElementById('targetRupees').value = data.config.targetRupees;
+    document.getElementById('stopRupees').value = data.config.stopRupees;
+    document.getElementById('maxOrdersPerDay').value = data.config.maxOrdersPerDay;
+    mode = data.config.mode; autoMode = data.config.autoMode; exitMode = data.config.exitMode || 'percent';
+    applyExitMode();
     document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
     document.querySelectorAll('#autoSeg button').forEach(b=>b.classList.toggle('active', (b.dataset.auto==='on')===autoMode));
   }
@@ -180,6 +199,7 @@ async function refresh(){
 
   renderLog(data.tradeLog);
   renderDaySummary(data.tradeLog, data.position);
+  document.getElementById('storageWarning').style.display = data.durableStorage ? 'none' : 'block';
   document.getElementById('capitalAvailable').textContent = '₹'+(data.availableCapital||0).toFixed(2);
   document.getElementById('nextMoveHint').textContent = data.nextMoveHint || 'Waiting for the first price check…';
 }
