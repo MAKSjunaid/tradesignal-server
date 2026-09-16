@@ -63,7 +63,7 @@ public class YahooFinanceService {
         JsonNode highsNode = quote.path("high");
         JsonNode lowsNode = quote.path("low");
 
-        // Build close/high/low together so the three lists stay index-aligned \u2014
+        //  Build close/high/low together so the three lists stay index-aligned \u2014
         // only keep a candle where all three values are actually present.
         int n = closesNode.size();
         for (int i = 0; i < n; i++) {
