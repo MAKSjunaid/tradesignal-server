@@ -36,6 +36,7 @@ public class TradeController {
         out.put("nextMoveHint", state.nextMoveHint);
         out.put("availableCapital", trading.availableCapital());
         out.put("marketOpen", trading.marketOpenNow());
+        out.put("durableStorage", trading.isStorageDurable());
         out.put("istTime", Instant.now().toString());
         return out;
     }
