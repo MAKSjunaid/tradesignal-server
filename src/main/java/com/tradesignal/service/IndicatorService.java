@@ -96,7 +96,7 @@ public class IndicatorService {
         return r;
     }
     /**
-     * Average True Range, expressed as a % of the latest close, over the given period.
+     * Average True Range, Expressed as a % of the latest close, over the given period.
      * This is a standard measure of how much a stock actually moves candle to candle \u2014
      * used here to size positions by real recent volatility instead of a flat percentage.
      */
