@@ -32,6 +32,9 @@ public class TradeController {
         out.put("tradeLog", state.tradeLog.size() > 100 ? state.tradeLog.subList(0, 100) : state.tradeLog);
         out.put("lastSignal", state.lastSignal);
         out.put("lastChecked", state.lastChecked);
+        out.put("lastVolatilityPct", state.lastVolatilityPct);
+        out.put("nextMoveHint", state.nextMoveHint);
+        out.put("availableCapital", trading.availableCapital());
         out.put("marketOpen", trading.marketOpenNow());
         out.put("istTime", Instant.now().toString());
         return out;
