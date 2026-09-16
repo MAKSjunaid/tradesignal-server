@@ -13,4 +13,5 @@ public class TradeLogEntry {
     public double pnl;
     public double pnlPct;
     public String reason;
+    public String sizingNote;
 }
