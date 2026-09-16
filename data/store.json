@@ -1,34 +1,42 @@
 {
   "config" : {
-    "symbol" : "INFY",
+    "symbol" : "MRF",
     "suffix" : ".NS",
-    "investment" : 10000.0,
+    "investment" : 1000000.0,
     "mode" : "intraday",
-    "targetPct" : 2.0,
-    "stopPct" : 1.0,
-    "autoMode" : true
+    "targetPct" : 0.02,
+    "stopPct" : 0.01,
+    "autoMode" : true,
+    "riskPerTradePct" : 1.0,
+    "maxOrderPct" : 15.0
   },
-  "position" : {
-    "symbol" : "INFY.NS",
+  "position" : null,
+  "tradeLog" : [ {
+    "symbol" : "MRF.NS",
     "mode" : "intraday",
-    "entryPrice" : 1077.0,
-    "qty" : 9,
-    "investedAmount" : 9693.0,
-    "entryTime" : "2026-09-15T18:35:16.782162900Z",
-    "target" : 1098.54,
-    "stopLoss" : 1066.23
-  },
-  "tradeLog" : [ ],
+    "entryPrice" : 124890.0,
+    "qty" : 1,
+    "investedAmount" : 124890.0,
+    "entryTime" : "2026-09-16T06:51:57.152509700Z",
+    "exitPrice" : 124820.0,
+    "exitTime" : "2026-09-16T06:53:09.987390700Z",
+    "pnl" : -70.0,
+    "pnlPct" : -0.05604932340459605,
+    "reason" : "Stop-loss hit",
+    "sizingNote" : "Risking 1.0% of capital (₹10000.00) over a 0.0% stop → 800 shares by risk, ×2.00 for 0.13% ATR volatility (baseline 1.0%), capped at 15% of capital."
+  } ],
   "lastSignal" : {
     "action" : "HOLD",
-    "reasons" : [ "Short-term average is below the long-term average — downtrend", "RSI is 53.6 — neutral", "Price is trading above its short-term average" ],
-    "s20" : 1075.7149963378906,
-    "s50" : 1078.3639916992188,
-    "r14" : 53.59999218772887,
-    "price" : 1077.0,
-    "symbol" : "INFY.NS",
-    "at" : "2026-09-15T18:37:05.119779900Z",
+    "reasons" : [ "Short-term average is below the long-term average — downtrend", "RSI is 59.4 — neutral", "Price is trading above its short-term average", "MACD (-194.236) is above its signal line (-224.601) — bullish momentum", "Price is within its normal Bollinger Band range — no extreme" ],
+    "s20" : 124917.77777777778,
+    "s50" : 125093.09523809524,
+    "r14" : 59.42028985507247,
+    "price" : 124985.0,
+    "symbol" : "MRF.NS",
+    "at" : "2026-09-16T07:06:09.150857400Z",
     "error" : null
   },
-  "lastChecked" : "2026-09-15T18:37:05.119779900Z"
+  "lastChecked" : "2026-09-16T07:06:09.150857400Z",
+  "lastVolatilityPct" : 0.12430063036135766,
+  "nextMoveHint" : "Signal is currently HOLD — waiting for a BUY signal to deploy capital."
 }
