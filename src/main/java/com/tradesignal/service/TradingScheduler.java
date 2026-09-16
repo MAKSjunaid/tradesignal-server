@@ -50,11 +50,12 @@ public class TradingScheduler {
             return;
         }
 
-        SignalResult sig = indicators.decideSignal(data.closes, data.regularMarketPrice);
+        SignalResult sig = indicators.decideSignal(data.closes, data.regularMarketPrice, cfg.mode);
         sig.symbol = symbol;
         sig.at = Instant.now().toString();
         state.lastSignal = sig;
         state.lastChecked = Instant.now().toString();
+        state.lastVolatilityPct = indicators.atrPct(data.highs, data.lows, data.closes, 14);
 
         ZonedDateTime n = MarketHours.istNow();
         int mins = MarketHours.minutesSinceMidnight(n);
@@ -64,9 +65,27 @@ public class TradingScheduler {
         if (state.position != null) {
             actOnOpenPosition(state, cfg, sig, price, mins);
         } else if (cfg.autoMode && open) {
-            maybeEnter(cfg, sig, symbol, price, mins);
+            maybeEnter(cfg, sig, symbol, price, mins, state.lastVolatilityPct);
         }
+        state.nextMoveHint = buildNextMoveHint(state, cfg, sig, price, mins);
         store.save();
+    }
+
+    private String buildNextMoveHint(AppState state, Config cfg, SignalResult sig, double price, int mins) {
+        if (state.position != null) {
+            double toTargetPct = Math.abs((state.position.target - price) / price) * 100;
+            double toStopPct = Math.abs((price - state.position.stopLoss) / price) * 100;
+            if (toStopPct <= toTargetPct) {
+                return String.format("%.2f%% away from the stop-loss (\u20b9%.2f) \u2014 may SELL to limit loss if it drops further.", toStopPct, state.position.stopLoss);
+            } else {
+                return String.format("%.2f%% away from the target (\u20b9%.2f) \u2014 may SELL to book profit if it rises further.", toTargetPct, state.position.target);
+            }
+        }
+        if (!cfg.autoMode) return "Auto mode is off \u2014 no automatic entry planned. Use \"Start paper trade now\" to enter manually.";
+        if (!MarketHours.marketOpenNow()) return "Market is closed \u2014 next check resumes once trading hours open.";
+        if ("intraday".equals(cfg.mode) && mins >= 900) return "Too close to market close to open a new intraday trade today \u2014 waiting for the next session.";
+        if ("BUY".equals(sig.action)) return "Signal is BUY \u2014 should enter on the next check (within 30s).";
+        return "Signal is currently " + sig.action + " \u2014 waiting for a BUY signal to deploy capital.";
     }
 
     private void actOnOpenPosition(AppState state, Config cfg, SignalResult sig, double price, int mins) {
@@ -81,10 +100,10 @@ public class TradingScheduler {
         }
     }
 
-    private void maybeEnter(Config cfg, SignalResult sig, String symbol, double price, int mins) {
+    private void maybeEnter(Config cfg, SignalResult sig, String symbol, double price, int mins, Double volatilityPct) {
         boolean tooLateForIntraday = "intraday".equals(cfg.mode) && mins >= 900;
         if (!tooLateForIntraday && "BUY".equals(sig.action)) {
-            execution.openPosition(symbol, price);
+            execution.openPosition(symbol, price, volatilityPct);
         }
     }
 }
