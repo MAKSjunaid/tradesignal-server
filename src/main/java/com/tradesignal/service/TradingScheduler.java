@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 
-/** Runs Every 30s: fetches the price, computes the signal, and acts on it. */
+/** Runs every 30s: fetches the price, computes the signal, and acts on it. */
 @Service
 public class TradingScheduler {
 
@@ -76,16 +76,25 @@ public class TradingScheduler {
             double toTargetPct = Math.abs((state.position.target - price) / price) * 100;
             double toStopPct = Math.abs((price - state.position.stopLoss) / price) * 100;
             if (toStopPct <= toTargetPct) {
-                return String.format("%.2f%% away from the stop-loss (\u20b9%.2f) \u2014 may SELL to limit loss if it drops further.", toStopPct, state.position.stopLoss);
-            } else {
-                return String.format("%.2f%% away from the target (\u20b9%.2f) \u2014 may SELL to book profit if it rises further.", toTargetPct, state.position.target);
+                return String.format("%.2f%% (\u20b9%.2f) away from the stop-loss at \u20b9%.2f \u2014 may SELL to limit loss if it drops further.",
+                        toStopPct, Math.abs(price - state.position.stopLoss), state.position.stopLoss);
             }
+            return String.format("%.2f%% (\u20b9%.2f) away from the target at \u20b9%.2f \u2014 may SELL to book profit if it rises further.",
+                    toTargetPct, Math.abs(state.position.target - price), state.position.target);
         }
-        if (!cfg.autoMode) return "Auto mode is off \u2014 no automatic entry planned. Use \"Start paper trade now\" to enter manually.";
-        if (!MarketHours.marketOpenNow()) return "Market is closed \u2014 next check resumes once trading hours open.";
-        if ("intraday".equals(cfg.mode) && mins >= 900) return "Too close to market close to open a new intraday trade today \u2014 waiting for the next session.";
-        if ("BUY".equals(sig.action)) return "Signal is BUY \u2014 should enter on the next check (within 30s).";
-        return "Signal is currently " + sig.action + " \u2014 waiting for a BUY signal to deploy capital.";
+        if (!cfg.autoMode) return "Auto mode is OFF \u2014 no automatic entry will happen. Switch it on and press Save setup.";
+        if (!MarketHours.marketOpenNow()) return "Market is closed \u2014 auto trading resumes at 9:15am IST on the next trading day.";
+
+        int ordersToday = execution.ordersOpenedToday(state);
+        if (ordersToday >= cfg.maxOrdersPerDay) {
+            return String.format("Daily order cap reached (%d of %d) \u2014 no more entries today.", ordersToday, cfg.maxOrdersPerDay);
+        }
+        if ("intraday".equals(cfg.mode) && mins >= 900) {
+            return "Too close to market close to open a new intraday trade today \u2014 waiting for the next session.";
+        }
+        if ("BUY".equals(sig.action)) return "Signal is BUY \u2014 entering on the next check (within 30s).";
+        return String.format("Signal is %s (confidence %+d, needs %+d to buy) \u2014 waiting for a BUY. %d/%d orders used today.",
+                sig.action, sig.score, sig.threshold, ordersToday, cfg.maxOrdersPerDay);
     }
 
     private void actOnOpenPosition(AppState state, Config cfg, SignalResult sig, double price, int mins) {
@@ -102,7 +111,9 @@ public class TradingScheduler {
 
     private void maybeEnter(Config cfg, SignalResult sig, String symbol, double price, int mins, Double volatilityPct) {
         boolean tooLateForIntraday = "intraday".equals(cfg.mode) && mins >= 900;
-        if (!tooLateForIntraday && "BUY".equals(sig.action)) {
+        if (tooLateForIntraday) return;
+        if (execution.ordersOpenedToday(store.get()) >= cfg.maxOrdersPerDay) return;
+        if ("BUY".equals(sig.action)) {
             execution.openPosition(symbol, price, volatilityPct);
         }
     }
