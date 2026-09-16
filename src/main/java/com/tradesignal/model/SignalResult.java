@@ -13,4 +13,4 @@ public class SignalResult {
     public String at; // ISO-8601
     public String error; // set instead of the above when a fetch fails
 }
-// GOOD
+//  GOOD
