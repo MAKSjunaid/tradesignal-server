@@ -28,6 +28,10 @@ public class TradingService {
         return MarketHours.marketOpenNow();
     }
 
+    public double availableCapital() {
+        return execution.availableCapital(store.get());
+    }
+
     public AppState getState() {
         return store.get();
     }
@@ -42,6 +46,8 @@ public class TradingService {
         cfg.targetPct = incoming.targetPct;
         cfg.stopPct = incoming.stopPct;
         cfg.autoMode = incoming.autoMode;
+        if (incoming.riskPerTradePct > 0 && incoming.riskPerTradePct <= 100) cfg.riskPerTradePct = incoming.riskPerTradePct;
+        if (incoming.maxOrderPct > 0 && incoming.maxOrderPct <= 100) cfg.maxOrderPct = incoming.maxOrderPct;
         store.save();
         scheduler.tick();
     }
@@ -52,8 +58,8 @@ public class TradingService {
         if (state.config.symbol == null || state.config.symbol.isBlank()) return "Set a symbol first.";
         if (state.lastSignal == null || state.lastSignal.error != null) return "No live price yet \u2014 try again in a few seconds.";
         String symbol = execution.fullSymbol(state.config.symbol, state.config.suffix);
-        boolean ok = execution.openPosition(symbol, state.lastSignal.price);
-        return ok ? null : "Investment amount is too small to buy 1 share at this price.";
+        boolean ok = execution.openPosition(symbol, state.lastSignal.price, state.lastVolatilityPct);
+        return ok ? null : "Investment amount is too small (or risk % too low) to buy even 1 share at this price.";
     }
 
     public String exitTrade() {
