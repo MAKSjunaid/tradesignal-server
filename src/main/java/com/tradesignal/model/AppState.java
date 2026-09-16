@@ -11,6 +11,6 @@ public class AppState {
     public String lastChecked = null;
     /** Latest ATR volatility (% of price), used for risk-based position sizing. */
     public Double lastVolatilityPct = null;
-    /** Plain-English read on what's likely to happen next (distance to target/stop, or why no trade is open). */
+    /**  Plain-English read on what's likely to happen next (distance to target/stop, or why no trade is open). */
     public String nextMoveHint = null;
 }
