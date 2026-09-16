@@ -32,6 +32,10 @@ public class TradingService {
         return execution.availableCapital(store.get());
     }
 
+    public boolean isStorageDurable() {
+        return store.isDurable();
+    }
+
     public AppState getState() {
         return store.get();
     }
@@ -48,6 +52,10 @@ public class TradingService {
         cfg.autoMode = incoming.autoMode;
         if (incoming.riskPerTradePct > 0 && incoming.riskPerTradePct <= 100) cfg.riskPerTradePct = incoming.riskPerTradePct;
         if (incoming.maxOrderPct > 0 && incoming.maxOrderPct <= 100) cfg.maxOrderPct = incoming.maxOrderPct;
+        if ("percent".equals(incoming.exitMode) || "rupees".equals(incoming.exitMode)) cfg.exitMode = incoming.exitMode;
+        if (incoming.targetRupees > 0) cfg.targetRupees = incoming.targetRupees;
+        if (incoming.stopRupees > 0) cfg.stopRupees = incoming.stopRupees;
+        if (incoming.maxOrdersPerDay > 0) cfg.maxOrdersPerDay = incoming.maxOrdersPerDay;
         store.save();
         scheduler.tick();
     }
