@@ -55,7 +55,9 @@ public class TradingService {
         if ("percent".equals(incoming.exitMode) || "rupees".equals(incoming.exitMode)) cfg.exitMode = incoming.exitMode;
         if (incoming.targetRupees > 0) cfg.targetRupees = incoming.targetRupees;
         if (incoming.stopRupees > 0) cfg.stopRupees = incoming.stopRupees;
-        if (incoming.maxOrdersPerDay > 0) cfg.maxOrdersPerDay = incoming.maxOrdersPerDay;
+        // null or <=0 means "no cap \u2014 decide purely from market conditions", which is a valid, intentional choice here.
+        cfg.maxOrdersPerDay = (incoming.maxOrdersPerDay != null && incoming.maxOrdersPerDay > 0) ? incoming.maxOrdersPerDay : null;
+        if (incoming.maxLegsPerPosition > 0) cfg.maxLegsPerPosition = incoming.maxLegsPerPosition;
         store.save();
         scheduler.tick();
     }
