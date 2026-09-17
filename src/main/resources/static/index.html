@@ -11,14 +11,17 @@
 <body>
 <div class="app">
   <div id="storageWarning" class="storage-warning">
-    Storage is not durable — this data will be wiped when the server restarts or sleeps. Set a DATABASE_URL environment variable on Render (free Neon/Supabase Postgres) to keep your trade history permanently.
+    Storage is not durable — this data will be wiped when the server restarts or sleeps. Set a DATABASE_URL environment variable on Render (free Neon Postgres) to keep your trade history permanently.
   </div>
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark">₹</div>
       <div><h1>TradeSignal</h1><div class="tagline">Always-on paper trading engine (Spring Boot) — runs on the server, not your browser</div></div>
     </div>
-    <div class="market-status"><span class="dot" id="marketDot"></span><span id="marketText">—</span><span id="istClock"></span></div>
+    <div class="market-status">
+      <span class="dot" id="marketDot"></span><span id="marketText">—</span><span id="istClock"></span>
+      <span class="live-price-badge" id="livePriceBadge">Live: —</span>
+    </div>
   </div>
 
   <div class="layout">
@@ -31,11 +34,12 @@
           <div><label>Exchange</label><select id="exchange"><option value=".NS">NSE</option><option value=".BO">BSE</option></select></div>
           <div><label>Investment (₹)</label><input type="number" id="investment" min="0"></div>
         </div>
+        <div class="hint" id="investmentWords"></div>
         <div class="row2">
           <div><label>Risk per trade (%)</label><input type="number" id="riskPerTradePct" min="0.1" max="100" step="0.1"></div>
           <div><label>Max order size (% cap)</label><input type="number" id="maxOrderPct" min="1" max="100" step="1"></div>
         </div>
-        <div class="hint">Position size is now calculated from your risk %, your stop-loss %, and the stock's live ATR volatility — not a flat percentage. "Max order size" is only a safety ceiling.</div>
+        <div class="hint">Position size is calculated from your risk %, stop-loss, and the stock's live ATR volatility — not a flat percentage. "Max order size" is only a safety ceiling.</div>
         <label>Mode</label>
         <div class="seg" id="modeSeg"><button data-mode="intraday">Intraday</button><button data-mode="longterm">Long-term</button></div>
         <label>Automatic execution</label>
@@ -53,9 +57,13 @@
           <div><label>Target (₹ move)</label><input type="number" id="targetRupees" min="0.01" step="0.01"></div>
           <div><label>Stop-loss (₹ move)</label><input type="number" id="stopRupees" min="0.01" step="0.01"></div>
         </div>
-        <label>Max orders per day</label>
-        <input type="number" id="maxOrdersPerDay" min="1" max="5000" step="1">
-        <button class="btn btn-primary" id="saveBtn">Save setup</button>
+        <div class="row2">
+          <div><label>Max orders per day</label><input type="number" id="maxOrdersPerDay" min="1" max="5000" step="1" placeholder="empty = no cap"></div>
+          <div><label>Max buy legs per trade</label><input type="number" id="maxLegsPerPosition" min="1" max="10" step="1"></div>
+        </div>
+        <div class="hint">Leave "Max orders per day" empty to let it trade as often as the market and signal justify. "Max buy legs" limits how many times it can average in on one open position if price drops.</div>
+
+        <button class="btn btn-primary" id="saveBtn">Auto Run</button>
         <button class="btn btn-secondary" id="manualStartBtn">Start paper trade now</button>
         <button class="btn btn-danger" id="exitBtn" style="display:none;">Exit trade now</button>
         <button class="btn btn-outline-danger" id="resetBtn">Reset everything</button>
@@ -72,6 +80,7 @@
 
     <div class="main">
       <div class="summary-strip">
+        <div class="item"><span class="k">Live price</span><span class="v" id="livePriceTile">₹0.00</span></div>
         <div class="item"><span class="k">Today's realised P&amp;L</span><span class="v" id="dayPnl">₹0.00</span></div>
         <div class="item"><span class="k">Trades today</span><span class="v" id="dayTrades">0</span></div>
         <div class="item"><span class="k">Win rate today</span><span class="v" id="dayWinRate">—</span></div>
@@ -85,18 +94,18 @@
       </div>
 
       <div class="panel" id="positionCard">
-        <h3 class="panel-title">Open position</h3>
+        <h3 class="panel-title">Open position <span class="tag" id="posLegsTag"></span></h3>
         <div class="card-row">
           <div><div class="sub">Live price</div><div class="big-num" id="posLive">—</div></div>
           <div><div class="sub">Unrealised P&amp;L</div><div class="big-num" id="posPnl">—</div></div>
         </div>
         <div class="card-row" style="margin-top:14px;">
-          <div><div class="sub">Investment utilised on this order</div><div class="big-num invested" id="posInvested">—</div></div>
-          <div><div class="sub">Entry / Qty</div><div class="big-num invested" id="posEntry">—</div></div>
+          <div><div class="sub">Currently invested</div><div class="big-num invested" id="posInvested">—</div></div>
+          <div><div class="sub">Quantity holding</div><div class="big-num invested" id="posQty">—</div></div>
         </div>
-        <div class="row2" style="margin-top:14px;">
-          <div class="sub">Target: <b id="posTarget"></b></div>
-          <div class="sub">Stop-loss: <b id="posStop"></b></div>
+        <div class="card-row" style="margin-top:14px;">
+          <div><div class="sub">Average entry price</div><div class="big-num invested" id="posEntry">—</div></div>
+          <div><div class="sub">Target / Stop-loss</div><div class="big-num invested" id="posTS">—</div></div>
         </div>
         <div class="hint" id="posSizingNote" style="margin-top:10px;"></div>
       </div>
@@ -112,7 +121,7 @@
   </div>
 
   <footer>
-    Paper trading only — no real orders are placed. This runs continuously on the Spring Boot server, so it keeps checking prices and managing any open trade even while your browser or laptop is closed. Signals come from a simple SMA/RSI heuristic on Yahoo Finance data — for learning, not investment advice. Always verify prices on your broker's terminal before acting on anything shown here.
+    Paper trading only — no real orders are placed. This runs continuously on the Spring Boot server, so it keeps checking prices and managing any open trade even while your browser or laptop is closed. Signals come from a simple SMA/RSI/MACD/Bollinger heuristic on Yahoo Finance data — for learning, not investment advice. Averaging in (buying more if price drops) is capped by "Max buy legs" as a safety limit, but it is still a real trading risk: a stock that keeps falling can still produce a loss even after averaging. Always verify prices on your broker's terminal before acting on anything shown here.
   </footer>
 </div>
 <script src="js/app.js"></script>
