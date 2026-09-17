@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/** Thin facade the controller talks to \u2014 the actual work lives in
+/** Thin Facade the controller talks to \u2014 the actual work lives in
  *  TradingScheduler (the 30s loop) and TradeExecutionService (open/close). */
 @Service
 public class TradingService {
