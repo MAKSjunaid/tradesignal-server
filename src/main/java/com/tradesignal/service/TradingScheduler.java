@@ -2,6 +2,7 @@ package com.tradesignal.service;
 
 import com.tradesignal.model.AppState;
 import com.tradesignal.model.Config;
+import com.tradesignal.model.Position;
 import com.tradesignal.model.SignalResult;
 import com.tradesignal.store.DataStore;
 import com.tradesignal.util.MarketHours;
@@ -63,7 +64,7 @@ public class TradingScheduler {
         double price = data.regularMarketPrice;
 
         if (state.position != null) {
-            actOnOpenPosition(state, cfg, sig, price, mins);
+            actOnOpenPosition(state, cfg, sig, price, mins, state.lastVolatilityPct);
         } else if (cfg.autoMode && open) {
             maybeEnter(cfg, sig, symbol, price, mins, state.lastVolatilityPct);
         }
@@ -73,46 +74,76 @@ public class TradingScheduler {
 
     private String buildNextMoveHint(AppState state, Config cfg, SignalResult sig, double price, int mins) {
         if (state.position != null) {
-            double toTargetPct = Math.abs((state.position.target - price) / price) * 100;
-            double toStopPct = Math.abs((price - state.position.stopLoss) / price) * 100;
+            Position p = state.position;
+            double toTargetPct = Math.abs((p.target - price) / price) * 100;
+            double toStopPct = Math.abs((price - p.stopLoss) / price) * 100;
+            String primary;
             if (toStopPct <= toTargetPct) {
-                return String.format("%.2f%% (\u20b9%.2f) away from the stop-loss at \u20b9%.2f \u2014 may SELL to limit loss if it drops further.",
-                        toStopPct, Math.abs(price - state.position.stopLoss), state.position.stopLoss);
+                primary = String.format("%.2f%% (\u20b9%.2f) away from the stop-loss at \u20b9%.2f \u2014 may SELL to limit loss if it drops further.",
+                        toStopPct, Math.abs(price - p.stopLoss), p.stopLoss);
+            } else {
+                primary = String.format("%.2f%% (\u20b9%.2f) away from the target at \u20b9%.2f \u2014 may SELL to book profit if it rises further.",
+                        toTargetPct, Math.abs(p.target - price), p.target);
             }
-            return String.format("%.2f%% (\u20b9%.2f) away from the target at \u20b9%.2f \u2014 may SELL to book profit if it rises further.",
-                    toTargetPct, Math.abs(state.position.target - price), state.position.target);
+            if (cfg.autoMode && p.legs.size() < cfg.maxLegsPerPosition) {
+                double lastLegPrice = p.legs.get(p.legs.size() - 1).price;
+                if (price < lastLegPrice) {
+                    primary += String.format(" Price has dropped since the last buy (\u20b9%.2f) \u2014 may average in again (leg %d of %d) if the signal stays BUY.",
+                            lastLegPrice, p.legs.size() + 1, cfg.maxLegsPerPosition);
+                }
+            }
+            return primary;
         }
-        if (!cfg.autoMode) return "Auto mode is OFF \u2014 no automatic entry will happen. Switch it on and press Save setup.";
+
+        if (!cfg.autoMode) return "Auto mode is OFF \u2014 no automatic entry will happen. Switch it on and press Auto Run.";
         if (!MarketHours.marketOpenNow()) return "Market is closed \u2014 auto trading resumes at 9:15am IST on the next trading day.";
 
         int ordersToday = execution.ordersOpenedToday(state);
-        if (ordersToday >= cfg.maxOrdersPerDay) {
+        if (cfg.maxOrdersPerDay != null && ordersToday >= cfg.maxOrdersPerDay) {
             return String.format("Daily order cap reached (%d of %d) \u2014 no more entries today.", ordersToday, cfg.maxOrdersPerDay);
         }
         if ("intraday".equals(cfg.mode) && mins >= 900) {
             return "Too close to market close to open a new intraday trade today \u2014 waiting for the next session.";
         }
         if ("BUY".equals(sig.action)) return "Signal is BUY \u2014 entering on the next check (within 30s).";
-        return String.format("Signal is %s (confidence %+d, needs %+d to buy) \u2014 waiting for a BUY. %d/%d orders used today.",
-                sig.action, sig.score, sig.threshold, ordersToday, cfg.maxOrdersPerDay);
+        String capNote = cfg.maxOrdersPerDay != null ? String.format(" %d/%d orders used today.", ordersToday, cfg.maxOrdersPerDay) : "";
+        return String.format("Signal is %s (confidence %+d, needs %+d to buy) \u2014 waiting for a BUY.%s",
+                sig.action, sig.score, sig.threshold, capNote);
     }
 
-    private void actOnOpenPosition(AppState state, Config cfg, SignalResult sig, double price, int mins) {
-        if (price >= state.position.target) {
+    private void actOnOpenPosition(AppState state, Config cfg, SignalResult sig, double price, int mins, Double volatilityPct) {
+        Position p = state.position;
+        if (price >= p.target) {
             execution.closePosition("Target hit", price);
-        } else if (price <= state.position.stopLoss) {
+            return;
+        }
+        if (price <= p.stopLoss) {
             execution.closePosition("Stop-loss hit", price);
-        } else if ("intraday".equals(state.position.mode) && mins >= 920) {
+            return;
+        }
+        if ("intraday".equals(p.mode) && mins >= 920) {
             execution.closePosition("Auto square-off before market close", price);
-        } else if (cfg.autoMode && "SELL".equals(sig.action)) {
+            return;
+        }
+        if (cfg.autoMode && "SELL".equals(sig.action)) {
             execution.closePosition("Signal turned SELL", price);
+            return;
+        }
+        // Averaging in: if the BUY signal is still active and price has dropped further since
+        // the last buy, add another (capped) tranche instead of just sitting idle waiting to exit.
+        // This lowers the average entry, making the (recalculated) target easier to reach.
+        if (cfg.autoMode && "BUY".equals(sig.action) && p.legs.size() < cfg.maxLegsPerPosition) {
+            double lastLegPrice = p.legs.get(p.legs.size() - 1).price;
+            if (price < lastLegPrice) {
+                execution.addToPosition(price, volatilityPct);
+            }
         }
     }
 
     private void maybeEnter(Config cfg, SignalResult sig, String symbol, double price, int mins, Double volatilityPct) {
         boolean tooLateForIntraday = "intraday".equals(cfg.mode) && mins >= 900;
         if (tooLateForIntraday) return;
-        if (execution.ordersOpenedToday(store.get()) >= cfg.maxOrdersPerDay) return;
+        if (cfg.maxOrdersPerDay != null && execution.ordersOpenedToday(store.get()) >= cfg.maxOrdersPerDay) return;
         if ("BUY".equals(sig.action)) {
             execution.openPosition(symbol, price, volatilityPct);
         }
