@@ -6,7 +6,7 @@ import java.util.List;
 public class Position {
     public String symbol;
     public String mode;
-    /** Weighted-average entry price across all legs (just the first leg's price if only one buy has happened). */
+    /** Weighted-average Entry price across all legs (just the first leg's price if only one buy has happened). */
     public double entryPrice;
     /** Total shares held across all legs. */
     public int qty;
