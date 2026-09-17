@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/** Everything About opening, adding to, closing, and settling a paper-trade position. */
+/** Everything About Opening, adding to, closing, and settling a paper-trade position. */
 @Service
 public class TradeExecutionService {
 
