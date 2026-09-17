@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/** Everything about opening, closing, and settling a paper-trade position. */
+/** Everything about opening, adding to, closing, and settling a paper-trade position. */
 @Service
 public class TradeExecutionService {
 
@@ -57,54 +57,106 @@ public class TradeExecutionService {
     }
 
     /**
-     * Risk-based, volatility-adjusted position sizing.
+     * Risk-based, volatility-adjusted quantity for ONE buy tranche (leg).
      * 1. riskAmount = how much money you're willing to lose if the stop-loss hits.
      * 2. qtyByRisk  = riskAmount / (stop-loss distance in \u20b9 per share).
      * 3. Scaled by how today's ATR volatility compares to a normal baseline \u2014 choppier
      *    than usual shrinks the size, calmer than usual allows a bit more.
-     * 4. Capped by maxOrderPct regardless, as a hard safety ceiling.
-     * All of this is based on current account equity (see availableCapital), not the
-     * original investment amount, so sizing compounds with realised P&L over time.
+     * 4. Capped by maxOrderPct of capitalBase, AND by what's actually affordable right now,
+     *    whichever is smaller.
      */
-    public boolean openPosition(String symbol, double price, Double volatilityPct) {
-        AppState state = store.get();
-        Config cfg = state.config;
-        double capitalBase = availableCapital(state);
-        if (capitalBase <= 0) return false;
-
+    private int computeLegQty(Config cfg, double price, Double volatilityPct, double capitalBase) {
+        if (capitalBase <= 0) return 0;
         double riskAmount = capitalBase * (cfg.riskPerTradePct / 100.0);
         boolean rupeeMode = "rupees".equals(cfg.exitMode);
         double stopDistancePerShare = rupeeMode ? cfg.stopRupees : price * (cfg.stopPct / 100.0);
-        if (stopDistancePerShare <= 0) return false;
+        if (stopDistancePerShare <= 0) return 0;
         int qtyByRisk = (int) Math.floor(riskAmount / stopDistancePerShare);
 
         double vol = (volatilityPct != null && volatilityPct > 0) ? volatilityPct : BASELINE_VOLATILITY_PCT;
         double volAdjust = clamp(BASELINE_VOLATILITY_PCT / vol, MIN_VOL_ADJUST, MAX_VOL_ADJUST);
         int qty = (int) Math.floor(qtyByRisk * volAdjust);
 
-        int qtyCap = (int) Math.floor((capitalBase * (cfg.maxOrderPct / 100.0)) / price);
-        qty = Math.min(qty, qtyCap);
+        int qtyCapByPct = (int) Math.floor((capitalBase * (cfg.maxOrderPct / 100.0)) / price);
+        int qtyCapByCash = (int) Math.floor(capitalBase / price);
+        qty = Math.min(qty, Math.min(qtyCapByPct, qtyCapByCash));
+        return Math.max(qty, 0);
+    }
+
+    /** Opens a brand-new position (first leg). Only call when no position is currently open. */
+    public boolean openPosition(String symbol, double price, Double volatilityPct) {
+        AppState state = store.get();
+        Config cfg = state.config;
+        double capitalBase = availableCapital(state);
+        int qty = computeLegQty(cfg, price, volatilityPct, capitalBase);
         if (qty < 1) return false;
 
         Position p = new Position();
         p.symbol = symbol;
         p.mode = cfg.mode;
-        p.entryPrice = price;
-        p.qty = qty;
-        p.investedAmount = price * qty;
-        p.entryTime = Instant.now().toString();
-        p.target = rupeeMode ? price + cfg.targetRupees : price * (1 + cfg.targetPct / 100);
-        p.stopLoss = rupeeMode ? price - cfg.stopRupees : price * (1 - cfg.stopPct / 100);
-        String exitDesc = rupeeMode
-                ? String.format("\u20b9%.2f target / \u20b9%.2f stop (absolute)", cfg.targetRupees, cfg.stopRupees)
-                : String.format("%.2f%% target / %.2f%% stop", cfg.targetPct, cfg.stopPct);
-        p.sizingNote = String.format(
-            "Risking %.1f%% of \u20b9%.2f capital (\u20b9%.2f) over a %s \u2192 %d shares by risk, \u00d7%.2f for %.2f%% ATR volatility, capped at %.0f%% of capital.",
-            cfg.riskPerTradePct, capitalBase, riskAmount, exitDesc, qtyByRisk, volAdjust, vol, cfg.maxOrderPct);
+        Position.PositionLeg leg = new Position.PositionLeg();
+        leg.price = price;
+        leg.qty = qty;
+        leg.time = Instant.now().toString();
+        p.legs.add(leg);
+        p.entryTime = leg.time;
 
         state.position = p;
+        recomputeAggregate(p, cfg);
         store.save();
         return true;
+    }
+
+    /**
+     * Adds another buy tranche to an already-open position ("averaging in") \u2014 used when the
+     * price has dropped since the last buy but the signal still says BUY, so the average entry
+     * price is lowered and the (recalculated) target becomes easier to reach. Capped by
+     * cfg.maxLegsPerPosition so this can't run away into an unbounded martingale.
+     */
+    public boolean addToPosition(double price, Double volatilityPct) {
+        AppState state = store.get();
+        Position p = state.position;
+        Config cfg = state.config;
+        if (p == null) return false;
+        if (p.legs.size() >= cfg.maxLegsPerPosition) return false;
+
+        double capitalBase = availableCapital(state); // already excludes what's locked in this position
+        int qty = computeLegQty(cfg, price, volatilityPct, capitalBase);
+        if (qty < 1) return false;
+
+        Position.PositionLeg leg = new Position.PositionLeg();
+        leg.price = price;
+        leg.qty = qty;
+        leg.time = Instant.now().toString();
+        p.legs.add(leg);
+
+        recomputeAggregate(p, cfg);
+        store.save();
+        return true;
+    }
+
+    /** Recomputes weighted-average entry, total qty/invested, and target/stop-loss from all legs. */
+    private void recomputeAggregate(Position p, Config cfg) {
+        int totalQty = 0;
+        double totalCost = 0;
+        for (Position.PositionLeg leg : p.legs) {
+            totalQty += leg.qty;
+            totalCost += leg.price * leg.qty;
+        }
+        p.qty = totalQty;
+        p.entryPrice = totalCost / totalQty;
+        p.investedAmount = totalCost;
+
+        boolean rupeeMode = "rupees".equals(cfg.exitMode);
+        p.target = rupeeMode ? p.entryPrice + cfg.targetRupees : p.entryPrice * (1 + cfg.targetPct / 100);
+        p.stopLoss = rupeeMode ? p.entryPrice - cfg.stopRupees : p.entryPrice * (1 - cfg.stopPct / 100);
+
+        String exitDesc = rupeeMode
+                ? String.format("\u20b9%.2f target / \u20b9%.2f stop (absolute, from average entry)", cfg.targetRupees, cfg.stopRupees)
+                : String.format("%.2f%% target / %.2f%% stop (from average entry)", cfg.targetPct, cfg.stopPct);
+        p.sizingNote = String.format(
+            "%d buy%s so far, averaged to \u20b9%.2f entry \u00d7 %d shares (\u20b9%.2f invested). %s.",
+            p.legs.size(), p.legs.size() > 1 ? "s" : "", p.entryPrice, p.qty, p.investedAmount, exitDesc);
     }
 
     private static double clamp(double v, double min, double max) {
