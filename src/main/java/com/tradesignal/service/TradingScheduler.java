@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 
-/** Runs Every 30s: fetches the price, computes the signal, and acts on it. */
+/** Runs Every 30s: Fetches the price, computes the signal, and acts on it. */
 @Service
 public class TradingScheduler {
 
